@@ -1,0 +1,97 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '[0-9]*'
+
+jobs:
+  package-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'liberica'
+          java-package: jdk-full
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Build Linux package
+        run: ./gradlew packageLinux
+        env:
+          JAVAFX_JMODS: ${{ env.JAVA_HOME }}/jmods
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: encore-linux
+          path: build/encore-linux/*.deb
+
+  package-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'liberica'
+          java-package: jdk-full
+
+      - name: Build Windows package
+        run: ./gradlew packageWindows
+        env:
+          JAVAFX_JMODS: ${{ env.JAVA_HOME }}/jmods
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: encore-windows
+          path: build/encore-windows/*.msi
+
+  package-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'liberica'
+          java-package: jdk-full
+
+      - name: Build Mac package
+        run: ./gradlew packageMac
+        env:
+          JAVAFX_JMODS: ${{ env.JAVA_HOME }}/jmods
+
+      - name: Upload Mac artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: encore-mac
+          path: build/encore-mac/*.dmg
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [package-linux, package-windows, package-mac]
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            encore-linux/*.deb
+            encore-windows/*.msi
+            encore-mac/*.dmg
+          generate_release_notes: true
